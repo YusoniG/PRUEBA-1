@@ -1,0 +1,80 @@
+# Simple workflow para desplegar contenido estático en GitHub Pages
+name: Desplegar contenido estático en Pages
+
+on:
+  # Se ejecuta cuando se realizan push en la rama por defecto
+  push:
+    branches: ["main"]
+
+  # Permite ejecutar este workflow manualmente desde la pestaña Actions
+  workflow_dispatch:
+
+# Configura los permisos del GITHUB_TOKEN para permitir el despliegue en GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Permite solo un despliegue concurrente, omitiendo las ejecuciones en cola entre la ejecución en progreso y la última en cola.
+# Sin embargo, NO cancela las ejecuciones en progreso para permitir que estos despliegues de producción se completen.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # Único trabajo de despliegue ya que solo estamos desplegando
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Verificar HTML
+        run: |
+          # Verificar el archivo index.html
+          if ! grep -q "<html" index.html; then
+            echo "El archivo index.html no contiene la etiqueta <html>"
+            exit 1
+          fi
+
+          # Puedes agregar más verificaciones según tus necesidades
+
+      - name: Verificar estructura de carpetas
+        run: |
+          # Verificar la existencia de las carpetas en la jerarquía
+          if [ ! -d "content" ]; then
+            echo "La carpeta 'content' no existe"
+            exit 1
+          fi
+          if [ ! -d "content/img" ] || [ -z "$(ls -A content/img)" ]; then
+            echo "La carpeta 'content/img' está vacía o no existe"
+            exit 1
+          fi
+          if [ ! -f "content/style.css" ]; then
+            echo "El archivo 'style.css' no existe en la carpeta 'content'"
+            exit 1
+          fi
+          if [ ! -d "scripts" ]; then
+            echo "La carpeta 'scripts' no existe"
+            exit 1
+          fi
+          if [ ! -f "scripts/app.js" ]; then
+            echo "El archivo 'app.js' no existe en la carpeta 'scripts'"
+            exit 1
+          fi
+          if [ ! -f "index.html" ]; then
+            echo "El archivo 'index.html' no existe"
+            exit 1
+          fi
+      - name: Configurar Pages
+        uses: actions/configure-pages@v3
+      - name: Subir artefacto
+        uses: actions/upload-pages-artifact@v2
+        with:
+          # Subir el repositorio completo
+          path: '.'
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
